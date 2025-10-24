@@ -47,6 +47,12 @@ class CC1101SnifferComponent : public PollingComponent {
 
   // RadioLib CC1101 instance
   CC1101 *radio_{nullptr};
+  
+  // Track initialization status
+  bool init_attempted_{false};
+  bool init_success_{false};
+  int16_t init_error_{0};
+  uint8_t chip_version_{0};
 
   // helper to convert bytes to hex string
   std::string bytes_to_hex(const uint8_t *buf, size_t len);

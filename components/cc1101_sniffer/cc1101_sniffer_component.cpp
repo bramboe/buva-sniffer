@@ -15,8 +15,21 @@ void CC1101SnifferComponent::dump_config() {
   ESP_LOGCONFIG(TAG, "  GDO0 Pin: GPIO%d", gdo0_pin_);
   ESP_LOGCONFIG(TAG, "  GDO2 Pin: GPIO%d", gdo2_pin_);
   ESP_LOGCONFIG(TAG, "  Frequency: %.3f MHz", freq_mhz_);
+  
+  // Show initialization status
+  if (!init_attempted_) {
+    ESP_LOGW(TAG, "  Status: Initialization NOT attempted!");
+  } else if (init_success_) {
+    ESP_LOGCONFIG(TAG, "  Status: ✅ Initialized OK");
+    ESP_LOGCONFIG(TAG, "  Chip Version: 0x%02X", chip_version_);
+  } else {
+    ESP_LOGE(TAG, "  Status: ❌ Initialization FAILED!");
+    ESP_LOGE(TAG, "  Error Code: %d", init_error_);
+    ESP_LOGE(TAG, "  Chip Version: 0x%02X (should be 0x14)", chip_version_);
+  }
+  
   if (this->is_failed()) {
-    ESP_LOGE(TAG, "  Setup Failed!");
+    ESP_LOGE(TAG, "  Component marked as FAILED");
   }
 }
 
@@ -28,6 +41,8 @@ void CC1101SnifferComponent::setup() {
   ESP_LOGI(TAG, "Pins: CS=%d, GDO0=%d, GDO2=%d", cs_pin_, gdo0_pin_, gdo2_pin_);
   ESP_LOGI(TAG, "Frequency: %.3f MHz", freq_mhz_);
 
+  init_attempted_ = true;
+
   // Create Module wrapper for RadioLib (GDO2 optional)
   Module *mod = new Module(cs_pin_, gdo0_pin_, gdo2_pin_);
 
@@ -35,16 +50,21 @@ void CC1101SnifferComponent::setup() {
 
   // Try to initialize CC1101
   int16_t state = radio_->begin();
+  init_error_ = state;
+  
   if (state != RADIOLIB_ERR_NONE) {
     ESP_LOGE(TAG, "❌ CC1101 begin() FAILED! Error code=%d", state);
     ESP_LOGE(TAG, "Check wiring: VCC->3.3V, GND->GND, CS->GPIO%d, MOSI->GPIO23, MISO->GPIO19, SCK->GPIO18", cs_pin_);
+    init_success_ = false;
     this->mark_failed();
     return;
   }
   ESP_LOGI(TAG, "✅ CC1101 initialized successfully!");
+  init_success_ = true;
 
   // Read and verify chip version (diagnostic)
   uint8_t version = radio_->getChipVersion();
+  chip_version_ = version;
   ESP_LOGI(TAG, "CC1101 chip version: 0x%02X (should be 0x14)", version);
   if (version != 0x14) {
     ESP_LOGW(TAG, "⚠️  Unexpected chip version! Expected 0x14, got 0x%02X", version);
@@ -75,17 +95,27 @@ void CC1101SnifferComponent::setup() {
 }
 
 void CC1101SnifferComponent::update() {
+  // Log RSSI periodically to show we're alive (every ~50 updates = 10 seconds)
+  static int counter = 0;
+  if (++counter >= 50) {
+    if (!init_attempted_) {
+      ESP_LOGE(TAG, "❌ Setup was never called! Component not initialized!");
+    } else if (!init_success_) {
+      ESP_LOGE(TAG, "❌ CC1101 initialization failed! Error: %d, Chip: 0x%02X", init_error_, chip_version_);
+      ESP_LOGE(TAG, "   Check wiring and power! Component is not functional.");
+    } else if (!radio_) {
+      ESP_LOGE(TAG, "❌ Radio object is NULL despite successful init!");
+    } else {
+      float current_rssi = radio_->getRSSI();
+      ESP_LOGI(TAG, "🔍 Status check - RSSI: %.1f dBm (waiting for packets...)", current_rssi);
+    }
+    counter = 0;
+  }
+  
   if (!radio_) return;
 
   // Read current RSSI to detect any activity
   float current_rssi = radio_->getRSSI();
-  
-  // Log RSSI periodically to show we're alive (every ~50 updates = 10 seconds)
-  static int counter = 0;
-  if (++counter >= 50) {
-    ESP_LOGI(TAG, "🔍 Status check - RSSI: %.1f dBm (waiting for packets...)", current_rssi);
-    counter = 0;
-  }
   
   // Detect any RF activity (signal strength spike)
   static float baseline_rssi = -100.0;
