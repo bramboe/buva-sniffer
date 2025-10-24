@@ -48,9 +48,9 @@ spi:
   miso_pin: GPIO19
 
 # Pull the sniffer component from your GitHub repo
-# Using specific commit with diagnostics (cd060a0)
+# Using @main branch (always latest with diagnostics)
 external_components:
-  - source: github://bramboe/buva-sniffer@cd060a0
+  - source: github://bramboe/buva-sniffer@main
     components: [ cc1101_sniffer ]
     refresh: always
 
