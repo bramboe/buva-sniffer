@@ -2,16 +2,12 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.const import CONF_ID
 from esphome import pins
-from esphome.components import text_sensor
 
 # This is the namespace for your component
 cc1101_sniffer_ns = cg.esphome_ns.namespace('cc1101_sniffer')
 
 # This is the main component class
 CC1101SnifferComponent = cc1101_sniffer_ns.class_('CC1101SnifferComponent', cg.PollingComponent)
-
-# Auto load text_sensor component
-AUTO_LOAD = ['text_sensor']
 
 # Define configuration keys
 CONF_CS_PIN = "cs_pin"

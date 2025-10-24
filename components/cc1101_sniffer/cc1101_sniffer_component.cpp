@@ -13,11 +13,6 @@ void CC1101SnifferComponent::setup() {
   ESP_LOGI(TAG, "Setup CC1101 sniffer (CS=%d GDO0=%d GDO2=%d Freq=%.3f)",
            cs_pin_, gdo0_pin_, gdo2_pin_, freq_mhz_);
 
-  // Initialize text sensor for packet data
-  if (!packet_text_sensor) {
-    packet_text_sensor = new esphome::text_sensor::TextSensor();
-  }
-
   // Create Module wrapper for RadioLib (GDO2 optional)
   Module *mod = new Module(cs_pin_, gdo0_pin_, gdo2_pin_);
 
@@ -67,12 +62,8 @@ void CC1101SnifferComponent::update() {
 
     std::string hex = bytes_to_hex(buffer, len);
 
+    // Log the received packet (visible in Home Assistant logs)
     ESP_LOGI(TAG, "RX len=%d RSSI=%.1f dBm: %s", len, rssi, hex.c_str());
-
-    // publish to the text_sensor for HA visibility
-    if (packet_text_sensor) {
-      packet_text_sensor->publish_state(hex);
-    }
   } else if (err == RADIOLIB_ERR_RX_TIMEOUT) {
     // ignore timeouts
   } else {

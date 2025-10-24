@@ -3,7 +3,6 @@
 #include "esphome/core/component.h"
 #include "esphome/core/gpio.h"
 #include "esphome/core/log.h"
-#include "esphome/components/text_sensor/text_sensor.h"
 #include <RadioLib.h>
 
 namespace esphome {
@@ -14,8 +13,6 @@ namespace cc1101_sniffer {
 
 class CC1101SnifferComponent : public PollingComponent {
  public:
-  // public text_sensor pointer so YAML / other components can read state
-  esphome::text_sensor::TextSensor *packet_text_sensor = nullptr;
 
   // Default constructor for ESPHome
   CC1101SnifferComponent() : PollingComponent(200) {}
