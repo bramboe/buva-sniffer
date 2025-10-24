@@ -140,8 +140,8 @@ void CC1101SnifferComponent::update() {
       radio_->setFrequency(new_freq);
       radio_->startReceive();
       
-      ESP_LOGI(TAG, "📡 Scanning %.2f MHz [%d/%d]", 
-               new_freq, scan_index_ + 1, scan_frequencies_.size());
+      ESP_LOGI(TAG, "📡 Scanning %.2f MHz [%d/%d] - RSSI: %.1f dBm", 
+               new_freq, scan_index_ + 1, scan_frequencies_.size(), current_rssi);
       
       // Move to next frequency for next cycle
       scan_index_ = (scan_index_ + 1) % scan_frequencies_.size();
@@ -155,8 +155,8 @@ void CC1101SnifferComponent::update() {
   static float baseline_rssi = -100.0;
   if (baseline_rssi == -100.0) baseline_rssi = current_rssi;
   
-  // Detect significant RSSI spike (RF activity!)
-  if (current_rssi > baseline_rssi + 10.0) {
+  // Detect significant RSSI spike (RF activity!) - lowered threshold to 5 dBm for better sensitivity
+  if (current_rssi > baseline_rssi + 5.0) {
     float detected_freq = scan_frequencies_[scan_index_ > 0 ? scan_index_ - 1 : scan_frequencies_.size() - 1];
     ESP_LOGW(TAG, "");
     ESP_LOGW(TAG, "🎯🎯🎯 RF ACTIVITY DETECTED! 🎯🎯🎯");
