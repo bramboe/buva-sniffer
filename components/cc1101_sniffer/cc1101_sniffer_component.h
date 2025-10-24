@@ -38,6 +38,9 @@ class CC1101SnifferComponent : public PollingComponent {
       radio_->setFrequency(freq_mhz_);
     }
   }
+  
+  // Enable/disable frequency scanning
+  void set_scan_mode(bool enable) { scan_mode_ = enable; }
 
  protected:
   int cs_pin_{-1};
@@ -53,6 +56,25 @@ class CC1101SnifferComponent : public PollingComponent {
   bool init_success_{false};
   int16_t init_error_{0};
   uint8_t chip_version_{0};
+  
+  // Frequency scanning
+  bool scan_mode_{true};  // Enable by default
+  size_t scan_index_{0};
+  int scan_dwell_counter_{0};
+  float detected_frequency_{0};
+  
+  // Common frequencies to scan (in MHz)
+  std::vector<float> scan_frequencies_ = {
+    868.30f,  // EU 868 MHz ISM band (primary)
+    868.35f,  // EU 868 MHz (common alternative)
+    868.95f,  // EU 868 MHz (LoRa/SRD)
+    869.85f,  // EU 869 MHz
+    433.92f,  // EU 433 MHz ISM band (very common)
+    433.42f,  // EU 433 MHz alternative
+    434.42f,  // EU 433 MHz alternative
+    867.00f,  // Lower 868 band
+    870.00f,  // Upper 868 band
+  };
 
   // helper to convert bytes to hex string
   std::string bytes_to_hex(const uint8_t *buf, size_t len);

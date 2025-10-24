@@ -14,7 +14,13 @@ void CC1101SnifferComponent::dump_config() {
   ESP_LOGCONFIG(TAG, "  CS Pin: GPIO%d", cs_pin_);
   ESP_LOGCONFIG(TAG, "  GDO0 Pin: GPIO%d", gdo0_pin_);
   ESP_LOGCONFIG(TAG, "  GDO2 Pin: GPIO%d", gdo2_pin_);
-  ESP_LOGCONFIG(TAG, "  Frequency: %.3f MHz", freq_mhz_);
+  ESP_LOGCONFIG(TAG, "  Base Frequency: %.3f MHz", freq_mhz_);
+  
+  if (scan_mode_) {
+    ESP_LOGCONFIG(TAG, "  Scan Mode: ENABLED (scanning %d frequencies)", scan_frequencies_.size());
+  } else {
+    ESP_LOGCONFIG(TAG, "  Scan Mode: DISABLED (fixed frequency)");
+  }
   
   // Show initialization status
   if (!init_attempted_) {
@@ -89,30 +95,58 @@ void CC1101SnifferComponent::setup() {
   if (r != RADIOLIB_ERR_NONE) {
     ESP_LOGE(TAG, "❌ startReceive() FAILED: %d", r);
   } else {
-    ESP_LOGI(TAG, "✅ Listening on %.3f MHz (OOK mode)", freq_mhz_);
-    ESP_LOGI(TAG, "Press buttons on your remote to test...");
+    if (scan_mode_) {
+      ESP_LOGI(TAG, "✅ Starting FREQUENCY SCANNER");
+      ESP_LOGI(TAG, "   Will scan %d frequencies automatically", scan_frequencies_.size());
+      ESP_LOGI(TAG, "   Press buttons on your remote NOW!");
+      ESP_LOGI(TAG, "");
+      ESP_LOGI(TAG, "📡 Frequencies to scan:");
+      for (size_t i = 0; i < scan_frequencies_.size(); i++) {
+        ESP_LOGI(TAG, "   %d. %.2f MHz", i+1, scan_frequencies_[i]);
+      }
+      ESP_LOGI(TAG, "==============================================");
+    } else {
+      ESP_LOGI(TAG, "✅ Listening on %.3f MHz (OOK mode)", freq_mhz_);
+      ESP_LOGI(TAG, "Press buttons on your remote to test...");
+    }
   }
 }
 
 void CC1101SnifferComponent::update() {
-  // Log RSSI periodically to show we're alive (every ~50 updates = 10 seconds)
-  static int counter = 0;
-  if (++counter >= 50) {
-    if (!init_attempted_) {
-      ESP_LOGE(TAG, "❌ Setup was never called! Component not initialized!");
-    } else if (!init_success_) {
-      ESP_LOGE(TAG, "❌ CC1101 initialization failed! Error: %d, Chip: 0x%02X", init_error_, chip_version_);
-      ESP_LOGE(TAG, "   Check wiring and power! Component is not functional.");
-    } else if (!radio_) {
-      ESP_LOGE(TAG, "❌ Radio object is NULL despite successful init!");
-    } else {
-      float current_rssi = radio_->getRSSI();
-      ESP_LOGI(TAG, "🔍 Status check - RSSI: %.1f dBm (waiting for packets...)", current_rssi);
+  if (!radio_ || !init_success_) {
+    static int error_counter = 0;
+    if (++error_counter >= 50) {
+      if (!init_attempted_) {
+        ESP_LOGE(TAG, "❌ Setup was never called!");
+      } else if (!init_success_) {
+        ESP_LOGE(TAG, "❌ Init failed! Error: %d, Chip: 0x%02X", init_error_, chip_version_);
+      }
+      error_counter = 0;
     }
-    counter = 0;
+    return;
   }
-  
-  if (!radio_) return;
+
+  // FREQUENCY SCANNING MODE
+  if (scan_mode_ && detected_frequency_ == 0) {
+    // Increment dwell counter
+    scan_dwell_counter_++;
+    
+    // Switch frequency every 10 updates (2 seconds at 200ms update)
+    if (scan_dwell_counter_ >= 10) {
+      scan_dwell_counter_ = 0;
+      
+      // Move to next frequency
+      float new_freq = scan_frequencies_[scan_index_];
+      radio_->setFrequency(new_freq);
+      radio_->startReceive();
+      
+      ESP_LOGI(TAG, "📡 Scanning %.2f MHz [%d/%d]", 
+               new_freq, scan_index_ + 1, scan_frequencies_.size());
+      
+      // Move to next frequency for next cycle
+      scan_index_ = (scan_index_ + 1) % scan_frequencies_.size();
+    }
+  }
 
   // Read current RSSI to detect any activity
   float current_rssi = radio_->getRSSI();
@@ -121,8 +155,24 @@ void CC1101SnifferComponent::update() {
   static float baseline_rssi = -100.0;
   if (baseline_rssi == -100.0) baseline_rssi = current_rssi;
   
+  // Detect significant RSSI spike (RF activity!)
   if (current_rssi > baseline_rssi + 10.0) {
-    ESP_LOGI(TAG, "📡 RF ACTIVITY DETECTED! RSSI jumped to %.1f dBm", current_rssi);
+    float detected_freq = scan_frequencies_[scan_index_ > 0 ? scan_index_ - 1 : scan_frequencies_.size() - 1];
+    ESP_LOGW(TAG, "");
+    ESP_LOGW(TAG, "🎯🎯🎯 RF ACTIVITY DETECTED! 🎯🎯🎯");
+    ESP_LOGW(TAG, "   Frequency: %.2f MHz", detected_freq);
+    ESP_LOGW(TAG, "   RSSI: %.1f dBm (was %.1f dBm)", current_rssi, baseline_rssi);
+    ESP_LOGW(TAG, "");
+    
+    // If in scan mode, lock onto this frequency
+    if (scan_mode_ && detected_frequency_ == 0) {
+      detected_frequency_ = detected_freq;
+      radio_->setFrequency(detected_frequency_);
+      radio_->startReceive();
+      ESP_LOGW(TAG, "🔒 LOCKED onto %.2f MHz - will monitor this frequency", detected_frequency_);
+      ESP_LOGW(TAG, "Press buttons again to capture packets!");
+      ESP_LOGW(TAG, "");
+    }
   }
   baseline_rssi = baseline_rssi * 0.99 + current_rssi * 0.01; // slow moving average
 
