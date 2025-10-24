@@ -1,9 +1,22 @@
 #include "cc1101_sniffer_component.h"
+#include "esphome/core/log.h"
 #include <SPI.h>
+#include <sstream>
+#include <iomanip>
+
+namespace esphome {
+namespace cc1101_sniffer {
+
+static const char *const TAG = "cc1101_sniffer";
 
 void CC1101SnifferComponent::setup() {
-  ESP_LOGI("cc1101_sniffer", "Setup CC1101 sniffer (CS=%d GDO0=%d GDO2=%d Freq=%.3f)",
+  ESP_LOGI(TAG, "Setup CC1101 sniffer (CS=%d GDO0=%d GDO2=%d Freq=%.3f)",
            cs_pin_, gdo0_pin_, gdo2_pin_, freq_mhz_);
+
+  // Initialize text sensor for packet data
+  if (!packet_text_sensor) {
+    packet_text_sensor = new esphome::text_sensor::TextSensor();
+  }
 
   // Create Module wrapper for RadioLib (GDO2 optional)
   Module *mod = new Module(cs_pin_, gdo0_pin_, gdo2_pin_);
@@ -12,14 +25,16 @@ void CC1101SnifferComponent::setup() {
 
   int16_t state = radio_->begin();
   if (state != RADIOLIB_ERR_NONE) {
-    ESP_LOGE("cc1101_sniffer", "CC1101 begin() failed, code=%d", state);
-    mark_failed();
+    ESP_LOGE(TAG, "CC1101 begin() failed, code=%d", state);
+    this->mark_failed();
     return;
   }
 
-  // Set some sensible defaults — tweak for Q-Stream
+  // Set some sensible defaults — tweak for BUVA/Q-Stream
   radio_->setFrequency(freq_mhz_);   // MHz
-  radio_->setModulation(CC1101_MODULATION_2FSK); // try FSK first - change to OOK if needed
+  // Note: RadioLib uses begin() with parameters for modulation
+  // For now, using defaults. To change modulation, use:
+  // radio_->setOOK(true); // for OOK
   radio_->setBitRate(4.8);           // kbps (4.8 kbps)
   radio_->setRxBandwidth(200.0);     // kHz
   radio_->setFrequencyDeviation(5.0); // kHz (used for FSK)
@@ -27,9 +42,9 @@ void CC1101SnifferComponent::setup() {
   // Start listening
   int16_t r = radio_->startReceive();
   if (r != RADIOLIB_ERR_NONE) {
-    ESP_LOGW("cc1101_sniffer", "startReceive() returned %d", r);
+    ESP_LOGW(TAG, "startReceive() returned %d", r);
   } else {
-    ESP_LOGI("cc1101_sniffer", "Started receive at %.3f MHz", freq_mhz_);
+    ESP_LOGI(TAG, "Started receive at %.3f MHz", freq_mhz_);
   }
 }
 
@@ -52,7 +67,7 @@ void CC1101SnifferComponent::update() {
 
     std::string hex = bytes_to_hex(buffer, len);
 
-    ESP_LOGI("cc1101_sniffer", "RX len=%d RSSI=%.1f dBm: %s", len, rssi, hex.c_str());
+    ESP_LOGI(TAG, "RX len=%d RSSI=%.1f dBm: %s", len, rssi, hex.c_str());
 
     // publish to the text_sensor for HA visibility
     if (packet_text_sensor) {
@@ -61,7 +76,7 @@ void CC1101SnifferComponent::update() {
   } else if (err == RADIOLIB_ERR_RX_TIMEOUT) {
     // ignore timeouts
   } else {
-    ESP_LOGW("cc1101_sniffer", "readData error: %d", err);
+    ESP_LOGW(TAG, "readData error: %d", err);
   }
 
   // restart receive for next packet
@@ -77,3 +92,6 @@ std::string CC1101SnifferComponent::bytes_to_hex(const uint8_t *buf, size_t len)
   }
   return oss.str();
 }
+
+}  // namespace cc1101_sniffer
+}  // namespace esphome

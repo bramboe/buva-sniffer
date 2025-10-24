@@ -2,12 +2,16 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.const import CONF_ID
 from esphome import pins
+from esphome.components import text_sensor
 
 # This is the namespace for your component
 cc1101_sniffer_ns = cg.esphome_ns.namespace('cc1101_sniffer')
 
 # This is the main component class
 CC1101SnifferComponent = cc1101_sniffer_ns.class_('CC1101SnifferComponent', cg.PollingComponent)
+
+# Auto load text_sensor component
+AUTO_LOAD = ['text_sensor']
 
 # Define configuration keys
 CONF_CS_PIN = "cs_pin"
@@ -31,15 +35,15 @@ async def to_code(config):
     await cg.register_component(var, config)
     
     # Set the pins
-    cs = await cg.gpio_pin_expression(config[CONF_CS_PIN])
-    cg.add(var.set_cs_pin(cs))
+    cs_pin = await cg.gpio_pin_expression(config[CONF_CS_PIN])
+    cg.add(var.set_cs_pin(cs_pin))
     
-    gdo0 = await cg.gpio_pin_expression(config[CONF_GDO0_PIN])
-    cg.add(var.set_gdo0_pin(gdo0))
+    gdo0_pin = await cg.gpio_pin_expression(config[CONF_GDO0_PIN])
+    cg.add(var.set_gdo0_pin(gdo0_pin))
     
     if CONF_GDO2_PIN in config:
-        gdo2 = await cg.gpio_pin_expression(config[CONF_GDO2_PIN])
-        cg.add(var.set_gdo2_pin(gdo2))
+        gdo2_pin = await cg.gpio_pin_expression(config[CONF_GDO2_PIN])
+        cg.add(var.set_gdo2_pin(gdo2_pin))
     
     # Set frequency
     cg.add(var.set_frequency(config[CONF_FREQUENCY]))
