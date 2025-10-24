@@ -9,8 +9,22 @@ namespace cc1101_sniffer {
 
 static const char *const TAG = "cc1101_sniffer";
 
+void CC1101SnifferComponent::dump_config() {
+  ESP_LOGCONFIG(TAG, "CC1101 Sniffer:");
+  ESP_LOGCONFIG(TAG, "  CS Pin: GPIO%d", cs_pin_);
+  ESP_LOGCONFIG(TAG, "  GDO0 Pin: GPIO%d", gdo0_pin_);
+  ESP_LOGCONFIG(TAG, "  GDO2 Pin: GPIO%d", gdo2_pin_);
+  ESP_LOGCONFIG(TAG, "  Frequency: %.3f MHz", freq_mhz_);
+  if (this->is_failed()) {
+    ESP_LOGE(TAG, "  Setup Failed!");
+  }
+}
+
 void CC1101SnifferComponent::setup() {
-  ESP_LOGI(TAG, "=== CC1101 Sniffer Setup ===");
+  ESP_LOGI(TAG, "");
+  ESP_LOGI(TAG, "==============================================");
+  ESP_LOGI(TAG, "=== CC1101 Sniffer Setup Starting ===");
+  ESP_LOGI(TAG, "==============================================");
   ESP_LOGI(TAG, "Pins: CS=%d, GDO0=%d, GDO2=%d", cs_pin_, gdo0_pin_, gdo2_pin_);
   ESP_LOGI(TAG, "Frequency: %.3f MHz", freq_mhz_);
 

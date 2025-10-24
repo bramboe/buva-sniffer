@@ -24,6 +24,7 @@ class CC1101SnifferComponent : public PollingComponent {
 
   void setup() override;
   void update() override;
+  void dump_config() override;
 
   // Setter methods for ESPHome component configuration
   void set_cs_pin(InternalGPIOPin *pin) { cs_pin_ = pin->get_pin(); }
