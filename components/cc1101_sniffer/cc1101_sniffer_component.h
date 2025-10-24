@@ -63,17 +63,35 @@ class CC1101SnifferComponent : public PollingComponent {
   int scan_dwell_counter_{0};
   float detected_frequency_{0};
   
-  // Common frequencies to scan (in MHz)
+  // Comprehensive frequency list for scanning (in MHz)
   std::vector<float> scan_frequencies_ = {
-    868.30f,  // EU 868 MHz ISM band (primary)
-    868.35f,  // EU 868 MHz (common alternative)
-    868.95f,  // EU 868 MHz (LoRa/SRD)
-    869.85f,  // EU 869 MHz
-    433.92f,  // EU 433 MHz ISM band (very common)
-    433.42f,  // EU 433 MHz alternative
-    434.42f,  // EU 433 MHz alternative
-    867.00f,  // Lower 868 band
-    870.00f,  // Upper 868 band
+    // 433 MHz ISM band (very common for remotes)
+    433.05f,  // Lower 433 band
+    433.42f,  // EU 433 alternative
+    433.92f,  // EU 433 primary (MOST COMMON!)
+    434.42f,  // Upper 433 band
+    434.79f,  // Upper edge 433 band
+    
+    // 868 MHz SRD band (Smart Home, sensors)
+    863.00f,  // Lower edge
+    865.00f,  // Mid-low
+    867.00f,  // Lower 868
+    868.00f,  // 868 band start
+    868.30f,  // EU 868 primary
+    868.35f,  // EU 868 common
+    868.50f,  // Mid 868
+    868.70f,  // Upper-mid 868
+    868.95f,  // EU 868 LoRa/SRD
+    869.20f,  // 869 band
+    869.50f,  // Mid 869
+    869.85f,  // Upper 869
+    870.00f,  // Upper edge
+    
+    // 315 MHz (US/Asia - less common in EU)
+    315.00f,
+    
+    // 915 MHz (US ISM band - if hardware supports)
+    915.00f,
   };
 
   // helper to convert bytes to hex string
