@@ -6,12 +6,15 @@ substitutions:
 esphome:
   name: ${hostname}
   comment: ${device_name}
-  platform: ESP32
-  board: esp32dev
+  platformio_options:
+    lib_deps:
+      - "jgromes/RadioLib"
 
-  # RadioLib dependency (PlatformIO will fetch this)
-  libraries:
-    - "jgromes/RadioLib"
+# ESP32 configuration (new syntax)
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
 
 # Keep your style (logger, wifi, api, ota, webserver, etc)
 logger:
@@ -45,44 +48,19 @@ spi:
   miso_pin: GPIO19
 
 # Pull the sniffer component from your GitHub repo
+# Using @main to force fresh pull from main branch
 external_components:
-  - source: github://bramboe/buva-sniffer
+  - source: github://bramboe/buva-sniffer@main
     components: [ cc1101_sniffer ]
-    refresh: 0s
+    refresh: 1s
 
-# Include the header (it will be available from the external component repo)
-includes:
-  - "cc1101_sniffer_component.h"
-
-# Globals: frequency can be changed here. Start at 868.300 or 433.920
-globals:
-  - id: cc1101_freq
-    type: float
-    initial_value: "868.300"
-
-# Instantiate the sniffer component via a lambda (pass pins + frequency)
-custom_component:
-  - lambda: |-
-      // CS pin, GDO0 pin, GDO2 pin (optional), frequency in MHz
-      auto *sn = new CC1101SnifferComponent(5, 4, 15, id(cc1101_freq));
-      App.register_component(sn);
-      // expose pointer to the component using its global id so it can be referenced
-      return {sn};
-
-# A text_sensor that will show the last packet in Home Assistant
-text_sensor:
-  - platform: template
-    name: "${device_name} Last Packet"
-    id: ${device_id}_last_packet
-    icon: "mdi:radio-tower"
-    update_interval: 10s
-    lambda: |-
-      // The component publishes into its own text_sensor; retrieve last state
-      auto *comp = (CC1101SnifferComponent*)App.get_component_by_type("CC1101SnifferComponent");
-      if (comp && comp->packet_text_sensor) {
-        return comp->packet_text_sensor->state.c_str();
-      }
-      return std::string("");
+# Configure the CC1101 sniffer component (new simplified approach)
+cc1101_sniffer:
+  cs_pin: GPIO5
+  gdo0_pin: GPIO4
+  gdo2_pin: GPIO15
+  frequency: 868.3  # MHz (change to 433.92 for 433MHz systems)
+  update_interval: 200ms
 
 # Optional: wifi signal + uptime sensors
 sensor:

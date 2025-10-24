@@ -6,12 +6,15 @@ substitutions:
 esphome:
   name: ${hostname}
   comment: ${device_name}
-  platform: ESP32
-  board: esp32dev
+  platformio_options:
+    lib_deps:
+      - "jgromes/RadioLib"
 
-  # RadioLib dependency (PlatformIO will fetch this)
-  libraries:
-    - "jgromes/RadioLib"
+# ESP32 configuration (new syntax)
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
 
 logger:
   level: DEBUG
@@ -45,9 +48,9 @@ spi:
 
 # Pull the sniffer component from your GitHub repo
 external_components:
-  - source: github://bramboe/buva-sniffer
+  - source: github://bramboe/buva-sniffer@main
     components: [ cc1101_sniffer ]
-    refresh: 0s
+    refresh: 1s
 
 # Configure the CC1101 sniffer component
 cc1101_sniffer:
