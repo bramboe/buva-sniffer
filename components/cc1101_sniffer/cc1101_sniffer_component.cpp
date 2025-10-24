@@ -126,6 +126,9 @@ void CC1101SnifferComponent::update() {
     return;
   }
 
+  // Read current RSSI to detect any activity (declare early for use in scanning log)
+  float current_rssi = radio_->getRSSI();
+
   // FREQUENCY SCANNING MODE
   if (scan_mode_ && detected_frequency_ == 0) {
     // Increment dwell counter
@@ -147,9 +150,6 @@ void CC1101SnifferComponent::update() {
       scan_index_ = (scan_index_ + 1) % scan_frequencies_.size();
     }
   }
-
-  // Read current RSSI to detect any activity
-  float current_rssi = radio_->getRSSI();
   
   // Detect any RF activity (signal strength spike)
   static float baseline_rssi = -100.0;
