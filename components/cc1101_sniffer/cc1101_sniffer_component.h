@@ -11,6 +11,10 @@ class CC1101SnifferComponent : public PollingComponent {
   // public text_sensor pointer so YAML / other components can read state
   text_sensor::TextSensor *packet_text_sensor = new text_sensor::TextSensor();
 
+  // Default constructor for ESPHome
+  CC1101SnifferComponent() : PollingComponent(200) {}
+
+  // Legacy constructor for custom_component usage
   CC1101SnifferComponent(int cs_pin, int gdo0_pin, int gdo2_pin, float freq_mhz)
       : PollingComponent(200), cs_pin_(cs_pin), gdo0_pin_(gdo0_pin),
         gdo2_pin_(gdo2_pin), freq_mhz_(freq_mhz) {}
@@ -18,7 +22,12 @@ class CC1101SnifferComponent : public PollingComponent {
   void setup() override;
   void update() override;
 
-  // optional helper to change frequency at runtime
+  // Setter methods for ESPHome component configuration
+  void set_cs_pin(GPIOPin *pin) { cs_pin_ = pin->get_pin(); }
+  void set_gdo0_pin(GPIOPin *pin) { gdo0_pin_ = pin->get_pin(); }
+  void set_gdo2_pin(GPIOPin *pin) { gdo2_pin_ = pin->get_pin(); }
+  
+  // Helper to change frequency (both at config time and runtime)
   void set_frequency(float freq) {
     freq_mhz_ = freq;
     if (radio_) {
@@ -27,10 +36,10 @@ class CC1101SnifferComponent : public PollingComponent {
   }
 
  protected:
-  int cs_pin_;
-  int gdo0_pin_;
-  int gdo2_pin_;
-  float freq_mhz_;
+  int cs_pin_{-1};
+  int gdo0_pin_{-1};
+  int gdo2_pin_{-1};
+  float freq_mhz_{868.3};
 
   // RadioLib CC1101 instance
   CC1101 *radio_{nullptr};
