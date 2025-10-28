@@ -1,0 +1,109 @@
+template:
+  - fan:
+      - name: "BUVA Ventilation"
+        unique_id: buva_ventilation_control
+        # The entity of your actual Shelly dimmer
+        availability: "{{ has_value('light.paradise_buva') }}"
+        state: >
+          {% if is_state('light.paradise_buva', 'on') %}
+            on
+          {% else %}
+            off
+          {% endif %}
+        # Map brightness (0-75%) to fan percentage (0-100%)
+        percentage: >
+          {% if is_state('light.paradise_buva', 'on') %}
+            {% set brightness_pct = state_attr('light.paradise_buva', 'brightness') | float / 255 * 100 %}
+            {{ (brightness_pct / 0.75) | round(0) | int }}
+          {% else %}
+            0
+          {% endif %}
+        # Support speed_count for better HomeKit compatibility (4 speeds: Off, Low, Medium, High)
+        speed_count: 3
+        # When turning on from HomeKit, set to a default brightness
+        turn_on:
+          - service: light.turn_on
+            target:
+              entity_id: light.paradise_buva
+            data:
+              brightness_pct: 25
+        turn_off:
+          - service: light.turn_off
+            target:
+              entity_id: light.paradise_buva
+        # When changing the fan speed (percentage)
+        set_percentage:
+          - variables:
+              # Round to nearest 25% step
+              stepped: >
+                {{ ((percentage / 25) | round(0)) * 25 }}
+          - choose:
+              - conditions: "{{ stepped == 0 }}"
+                sequence:
+                  - service: light.turn_off
+                    target:
+                      entity_id: light.paradise_buva
+              - conditions: "{{ stepped > 0 }}"
+                sequence:
+                  - service: light.turn_on
+                    target:
+                      entity_id: light.paradise_buva
+                    data:
+                      # Map 0–100% fan → 0–75% brightness
+                      brightness_pct: >
+                        {{ (stepped * 0.75) | int }}
+
+        # Preset modes matching your ventilation speeds
+        preset_modes:
+          - Low
+          - Medium
+          - High
+        preset_mode: >
+          {% set brightness_pct = state_attr('light.paradise_buva', 'brightness') | float / 255 * 100 %}
+          {% if brightness_pct < 15 %}
+            Low
+          {% elif brightness_pct < 40 %}
+            Low
+          {% elif brightness_pct < 65 %}
+            Medium
+          {% else %}
+            High
+          {% endif %}
+        set_preset_mode:
+          - choose:
+              - conditions: "{{ preset_mode == 'Low' }}"
+                sequence:
+                  - service: light.turn_on
+                    target:
+                      entity_id: light.paradise_buva
+                    data:
+                      brightness_pct: 25
+              - conditions: "{{ preset_mode == 'Medium' }}"
+                sequence:
+                  - service: light.turn_on
+                    target:
+                      entity_id: light.paradise_buva
+                    data:
+                      brightness_pct: 50
+              - conditions: "{{ preset_mode == 'High' }}"
+                sequence:
+                  - service: light.turn_on
+                    target:
+                      entity_id: light.paradise_buva
+                    data:
+                      brightness_pct: 75
+                      
+homekit:
+  - name: Home Assistant Bridge
+    filter:
+      include_entities:
+        - fan.buva_ventilation
+      exclude_entities:
+        - light.paradise_buva  # Hide the underlying light from HomeKit
+    entity_config:
+      fan.buva_ventilation:
+        name: "BUVA Ventilation"
+        # HomeKit fan type
+        feature_list:
+          - feature: on_off
+          - feature: speed
